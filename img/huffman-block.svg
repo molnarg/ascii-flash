@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/2001/PR-SVG-20010719/DTD/svg10.dtd">
+<svg width="23cm" height="5cm" viewBox="378 298 459 85" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" x="700" y="300" width="136.2" height="40"/>
+    <text font-size="12.7998" style="fill: #ffffff;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="768.1" y="323.9">
+      <tspan x="768.1" y="323.9">Compressed Data</tspan>
+    </text>
+  </g>
+  <g>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" x="580" y="300" width="120" height="40"/>
+    <text font-size="12.7998" style="fill: #ffffff;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="640" y="323.9">
+      <tspan x="640" y="323.9">Table #1</tspan>
+    </text>
+  </g>
+  <g>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" x="460" y="300" width="120" height="40"/>
+    <text font-size="12.7998" style="fill: #ffffff;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="520" y="323.9">
+      <tspan x="520" y="323.9">Table #2</tspan>
+    </text>
+  </g>
+  <g>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" x="380" y="300" width="80" height="40"/>
+    <text font-size="12.7998" style="fill: #ffffff;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="420" y="323.9">
+      <tspan x="420" y="323.9">Header</tspan>
+    </text>
+  </g>
+  <text font-size="12.7998" style="fill: #ffffff;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="400" y="380">
+    <tspan x="400" y="380"># of items defined by</tspan>
+  </text>
+  <g>
+    <path style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" d="M 648.215,345.175 A 112.56,112.56 0 0 0 768.1,340"/>
+    <polygon style="fill: #ffffff" points="641.839,341.272 652.907,342.851 648.006,345.54 647.217,351.074 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" points="641.839,341.272 652.907,342.851 648.006,345.54 647.217,351.074 "/>
+  </g>
+  <text font-size="12.7998" style="fill: #ffffff;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="580" y="380">
+    <tspan x="580" y="380">Is compressed using</tspan>
+  </text>
+  <g>
+    <path style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" d="M 528.035,345.438 A 100,100 0 0 0 640,340"/>
+    <polygon style="fill: #ffffff" points="521.789,341.342 532.789,343.342 527.789,345.842 526.789,351.342 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" points="521.789,341.342 532.789,343.342 527.789,345.842 526.789,351.342 "/>
+  </g>
+  <g>
+    <path style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" d="M 427.432,346.188 A 72.5,72.5 0 0 0 520,340"/>
+    <polygon style="fill: #ffffff" points="421.619,341.542 432.309,344.818 427.05,346.715 425.412,352.059 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" points="421.619,341.542 432.309,344.818 427.05,346.715 425.412,352.059 "/>
+  </g>
+</svg>

